@@ -1,0 +1,620 @@
+---
+title: "rstan visual diagnostics"
+output: html_notebook
+---
+### Methods used from: https://cran.r-project.org/web/packages/bayesplot/vignettes/visual-mcmc-diagnostics.html
+
+
+```{r}
+require(bayesplot)
+require(ggplot2)
+require(rstan)
+require(gridExtra)
+require(grid)
+require(extrafont)
+require(reshape2)
+
+graphpath <- '/Users/spinz/Documents/LaTex/internship_graphs/'
+```
+
+### Utility functions
+```{r}
+
+get_cor <- function(p1,p2,postdf){
+  c <- cor(postdf[,p1],postdf[,p2])
+  eq <- substitute(italic(r) == c, 
+         list(c = c, digits = 2))
+    as.character(as.expression(eq));
+}
+
+mcmc_scatter_grid <- function(p1,p2,posterior,p1dat,p2dat,rcoord){
+  require(ggplot2)
+  
+  scatter  <- mcmc_scatter(posterior,
+             pars=c(p1, p2),
+             alpha=0.3,
+             size=3)
+  
+  scatter <- scatter + geom_smooth(method = "lm", se = FALSE, color = "blue4",
+                 size = .75, linetype = 2) +
+              annotate("text",
+                       x=rcoord[1],
+                       y=rcoord[2],
+                       #x=0.75*max(p1dat),
+                       #y=0.75*max(p2dat),
+                       #hjust=-8,
+                       #vjust=-20, 
+                       fontface=5,
+                       size=3.5,
+                       family="Comic Sans MS",
+                       label = sprintf("r = %.2f", cor(p1dat,p2dat))) +
+              theme_light() + 
+              theme(plot.title=element_text(size=12,hjust=0.5,family = "Comic Sans MS",face="bold"),
+                    axis.text = element_text(size=8),
+                    axis.title = element_text(size=7.5,family = "Comic Sans MS",face="bold"),
+                    panel.border=element_blank())
+  return(scatter)
+  
+}
+
+
+accscore_plot <- function(df,p,colours) {
+  
+  avg <- mean(df$scores)
+  gg <- ggplot(df[which(df$scores>0),], aes(x=id,y=scores)) + 
+    geom_point(aes(color=eval(parse(text=p$name)),size=4)) + 
+    scale_colour_gradientn(colours = colours) + 
+    scale_size(guide = 'none')+ 
+    theme_minimal()+
+    theme(plot.title=element_text(size=12,hjust=0.5,family = "Comic Sans MS",face="bold"),
+                    axis.text = element_text(size=8),
+                    axis.title = element_text(size=7.5,family = "Comic Sans MS",face="bold"))+
+    labs(color=p$name)+
+    geom_hline(aes(yintercept=avg))
+
+  }
+```
+
+
+
+### Load the fitted object (MA for alternate model, M0 for null model)
+```{r}
+fit <- readRDS('/Users/spinz/Projects/R/reinforcement_learning/model_choice/M4/fit4_Y5.rds')
+posterior <- as.data.frame(fit)
+grppars <- c("mu_alpha","mu_gobias","mu_re_re","mu_re_pu")
+np <- nuts_params(fit)
+print(fit,grppars)
+```
+
+
+### Rhat
+```{r}
+
+rhats <- rhat(fit)
+color_scheme_set("brightblue") # see help("color_scheme_set")
+mcmc_rhat(rhats) + ggtitle("Rhat pour l'ensemble des paramètres") + theme(plot.title = element_text(hjust = 0.5,family="Comic Sans MS", size=14))
+```
+
+### Effective sample size
+```{r}
+ratios <- neff_ratio(fit) 
+neff <- mcmc_neff(ratios) 
+```
+
+### Autocorrelation between chains
+```{r}
+mcmc_acf(posterior, lags = 10)
+```
+
+### Traceplots, chain mixing
+```{r}
+color_scheme_set("mix-brightblue-gray")
+#mcmc_trace(posterior, pars = "gobias[4]", np = np) + 
+ # xlab("Post-warmup iteration")
+atrace <- traceplot(fit,pars=sprintf("alpha[%s]",seq(1:10)))
+btrace <- traceplot(fit ,pars=sprintf("gobias[%s]",seq(1:10)))
+retrace <- traceplot(fit ,pars=sprintf("re_re[%s]",seq(1:10)))
+putrace <- traceplot(fit ,pars=sprintf("re_pu[%s]",seq(1:10)))
+grid.arrange(atrace,btrace,retrace,putrace, 
+             nrow=2,
+             ncol=2,
+               top = "Traceplots for parameters",
+  bottom = textGrob(
+    "Simulated data",
+    gp = gpar(fontface = 3, fontsize = 9),
+    hjust = 0.5,
+    x = 1
+  ))
+
+# Group level traceplot 
+muatrace <- traceplot(fit,pars="mu_alpha") 
+mugtrace <- traceplot(fit,pars="mu_gobias")
+murtrace <- traceplot(fit,pars="mu_re_re")
+muptrace <- traceplot(fit,pars="mu_re_pu")
+
+muatrace$labels$colour <- "chaînes"
+mugtrace$labels$colour <- "chaînes"
+murtrace$labels$colour <- "chaînes"
+muptrace$labels$colour <- "chaînes"
+
+traceplot(fit,pars=grppars)
+
+gg <- grid.arrange(muatrace, mugtrace, murtrace,muptrace, 
+             nrow=2,
+             ncol=2,
+               top = "Mélange des chaînes pour les hyperparamètres",
+  bottom = textGrob(
+    "Groupe: Coventure, Année 5 ≈ 16-17ans",
+    gp = gpar(fontface = 3, fontsize = 9),
+    hjust = 0.5,
+    x = 0.5
+  ))
+
+ggsave(paste0(graphpath,'chaîneshyper.png'),gg)
+```
+
+### Divergence 
+```{r}
+posterior <- as.array(fit)
+postdf <- as.data.frame(fit)
+
+alphalist <- sprintf("alpha[%s]",seq(1:5))
+gobiaslist <- sprintf("gobias[%s]",seq(1:5))
+# Also see mcmc_pairs
+pairsplot <- mcmc_pairs(
+  posterior, 
+  pars = c("mu_alpha", "mu_gobias", "mu_re_re", "mu_re_pu"), 
+  np = np,
+  off_diag_args = list(size = 1, alpha = 0.5) 
+) 
+color_scheme_set("pink")
+pairsplot + geom_smooth(method = "lm", se = FALSE, color = "gray20",size = .75, linetype = 2) + stat_density_2d(color = "black", size = .5) + stat_ellipse(level = 0.9, color = "gray20", size = 1)
+
+
+
+# Get all joint scatters into one plot list
+p1 <- mcmc_scatter_grid("mu_alpha", "mu_gobias", posterior, postdf[,"mu_alpha"],postdf[,"mu_gobias"],rcoord=c(0.8,1))
+p2 <- mcmc_scatter_grid("mu_alpha", "mu_re_re", posterior, postdf[,"mu_alpha"],postdf[,"mu_re_re"],rcoord=c(0.7,1.25))
+p3 <- mcmc_scatter_grid("mu_alpha", "mu_re_pu", posterior, postdf[,"mu_alpha"],postdf[,"mu_re_pu"],rcoord=c(0.8,1.2))
+p4 <- mcmc_scatter_grid("mu_gobias", "mu_re_re", posterior, postdf[,"mu_gobias"],postdf[,"mu_re_re"],rcoord=c(0.8,1.25))
+p5 <- mcmc_scatter_grid("mu_gobias", "mu_re_pu", posterior, postdf[,"mu_gobias"],postdf[,"mu_re_pu"],rcoord=c(1,1.2))
+p6 <- mcmc_scatter_grid("mu_re_re", "mu_re_pu", posterior, postdf[,"mu_re_re"],postdf[,"mu_re_pu"],rcoord=c(1.2,1.2))
+
+scatter.grid <- grid.arrange(p1,p2,p3,p4,p5,p6, top=textGrob("Distributions Conjointes des échantillons MCMC", gp=gpar(fontsize=16, font=3,fontfamily="Comic Sans MS")), bottom=textGrob("p:coefficient de corrélation",gp=gpar(fontsize=10,font=2, fontfamily="Comic Sans MS")))
+
+# Analysis of probability of seeing two IRV ~ N(0,1) and N(0,10) with a CC greater than 0.38 (absolute value)
+# count
+k=0
+for (i in 1:10000) { a= cor(runif(4000,0,10),rnorm(4000,0,1)); if(abs(a)>0.3) {k=k+1}}
+print(k/10000)
+
+```
+
+
+### Energy 
+```{r}
+color_scheme_set("red")
+mcmc_nuts_energy(np)
+```
+
+
+### Extract columns for all individual parameters, for each parameter
+```{r}
+
+#re_re_cols <- grep('re_re\\[[0-9]\\]',colnames(posterior))
+#re_pu_cols <- grep('re_pu\\[[0-9]\\]',colnames(posterior))
+#alpha_cols <- grep('alpha\\[[0-9]\\]',colnames(posterior))
+#gobias_cols <- grep('gobias\\[[0-9]\\]',colnames(posterior))
+log_like_MA <- grep('log_lik', colnames(posterior))
+log_like_M0 <- grep('log_lik', colnames(posterior_M0))
+post_cols <- grep('y_pred', colnames(posterior))
+post_cols_M0 <- grep('y_pred', colnames(posterior_M0))
+
+```
+
+
+
+### Correlation between parameters
+```{r}
+cor(sapply(posterior[,re_re_cols],mean), sapply(posterior[,alpha_cols],mean))
+
+```
+
+### Look at distributions
+```{r}
+
+# pp <- plot(fit18, show_density = TRUE, pars=sprintf("alpha[%s]",seq(1:20)),ci_level = 0.8, fill_color = "red",bty="n") + vline_at(v, linetype = c(1,3), size = 0.8, color=c('black','grey')) + labs(caption="Dotted Line:Estimated Group Mean; Full Line: Actual Group Mean")
+# plot(fit18, show_density = TRUE, pars=sprintf("gobias[%s]",seq(1:20)),ci_level = 0.8, fill_color = "blue")
+# plot(fit18, show_density = TRUE, pars=sprintf("re_re[%s]",seq(1:20)),ci_level = 0.8, fill_color = "purple")
+# plot(fit18, show_density = TRUE, pars=sprintf("re_pu[%s]",seq(1:20)),ci_level = 0.8, fill_color = "green")
+
+# Group level dists
+gg <- plot(fit, show_density=TRUE, pars=grppars)
+muadist <- as.data.frame(extract(fit,pars="mu_alpha"))
+mugdist <- as.data.frame(extract(fit,pars="mu_gobias"))
+murdist <- as.data.frame(extract(fit,pars="mu_re_re"))
+mupdist <- as.data.frame(extract(fit,pars="mu_re_pu"))
+
+grpd <- c(muadist,mugdist,murdist,mupdist)
+
+muadist.gg <- ggplot(melt(muadist), aes(value,fill=variable)) + 
+  geom_density(alpha=0.6,fill="red") + 
+  theme_minimal() 
+muadist.gg <- muadist.gg + labs(x="Valeur", y="Densité", title=TeX("$\\mu_{\\alpha}$")) + theme(plot.title = element_text(hjust = 0.5,family="Comic Sans MS", size=14))
+
+
+mugdist.gg <- ggplot(melt(mugdist), aes(value,fill=variable)) + 
+  geom_density(alpha=0.6,fill="darkblue") + 
+  theme_minimal()
+mugdist.gg <- mugdist.gg + labs(x="Valeur", y="Densité", title=TeX("$\\mu_{\\beta}$")) + theme(plot.title = element_text(hjust = 0.5,family="Comic Sans MS", size=14))
+
+murdist.gg <- ggplot(melt(murdist), aes(value,fill=variable)) + 
+  geom_density(alpha=0.6,fill="darkgreen") + 
+  theme_minimal()
+murdist.gg <- murdist.gg + labs(x="Valeur", y="Densité", title=TeX("$\\mu_{\\re}$")) + theme(plot.title = element_text(hjust = 0.5,family="Comic Sans MS", size=14))
+
+mupdist.gg <- ggplot(melt(mupdist), aes(value,fill=variable)) + 
+  geom_density(alpha=0.6,fill="purple") + 
+  theme_minimal() 
+mupdist.gg <- mupdist.gg + labs(x="Valeur", y="Densité", title=TeX("$\\mu_{\\alpha}$")) + theme(plot.title = element_text(hjust = 0.5,family="Comic Sans MS", size=14))
+
+gg <- grid.arrange(muadist.gg, mugdist.gg,murdist.gg,mupdist.gg,
+                   top=textGrob("Distributions postérieures des hyperparamètres", gp=gpar(fontsize=16,font=3,fontfamily="Comic Sans MS")))
+
+ggsave(paste0(graphpath,'grouppostdist.png'),gg)
+
+PRINTNUM <- 10
+for (p in param) {
+  p<-param[[4]]
+
+  v <- c(mean(p$values),p$mu_p)
+  df <- as.data.frame(extract(fit,pars=p$name))
+  df.long <- melt(df)
+  #df.long$iter <- rep(seq(1,4000,1),
+  df2 <- data.frame(data=p$values,data_hat=colMeans(p$est_values))
+  names(df2) <- c(p$disp, paste(p$disp,'_','hat'))
+  df2.long <- melt(df2)
+  plots <- list()
+  for (i in 1:PRINTNUM) {
+    if (i==1) {
+      legend.pos = "top"
+    } else { legend.pos = "none"}
+    
+    #df.long[eval(parse(text=sprintf("df.long$variable == '%s.%s'",p$name,i))),'mean'] <- mean(df[,paste0('gobias.','',i)])
+  
+  plots[[i]]<- ggplot(df.long[eval(parse(text=sprintf("df.long$variable == '%s.%s'",p$name,i))),],aes(value,fill='red')) + 
+                geom_density() +
+                geom_vline(xintercept = mean(df[,paste0(p$name,'.',i)]), color='purple',linetype=2,show.legend=TRUE) +
+                #geom_vline(aes(xintercept = v[1], color='grp_mean')) +
+                #geom_vline(aes(xintercept = v[2], color='moyenne_groupe')) +
+                geom_vline(xintercept = p$values[i], aes(color='grd_truth')) +
+                scale_color_manual(name = "", 
+                                   values = c(ind_mean = "purple", 
+                                              grp_mean = "blue", 
+                                              est_grp_mean='green', 
+                                              grd_truth='grey')) +
+                theme_minimal() +
+               theme(axis.title.x = element_blank(), 
+                     axis.text.y = element_blank(),
+                     axis.title.y = element_blank(), 
+                     axis.ticks.y=element_blank(),
+                     legend.position=legend.pos) +
+                scale_x_continuous(limits=p$support)+
+                guides(fill=FALSE)
+
+}
+
+# plots[[PRINTNUM+1]] <- 
+  pp <- ggplot(df2.long,aes(x=value,fill=variable)) +  
+              geom_density(alpha=0.40, aes(color=variable)) +
+              #geom_vline(xintercept = v, size=1, linetype=c(1,4),color=c('black','grey')) +
+              theme_minimal() +
+              theme(axis.title.x = element_blank(),
+                    axis.text.y = element_blank(),
+                    axis.ticks.y=element_blank(),
+                    axis.ticks.x=element_blank(),
+                   axis.title.y = element_blank(),
+                   legend.position="bottom",
+                   legend.key.size=unit(1,'line'),
+                   legend.title = element_blank(),
+                   plot.title = element_text(hjust = 0.5,family="Comic Sans MS"),
+                   text=element_text(size=16,  family="Comic Sans MS")) +
+              scale_x_continuous(limits=p$support) +
+              ggtitle(sprintf("Distribution du paramètre %s",p$disp))
+
+              #scale_color_manual(labels = c(p$name, paste(p$name,'_','hat')), values = c("blue", "red")) +
+
+
+print(grid.arrange(bayesplot_grid(plots=plots,grid_args = list(ncol = 1), titles=c(rep("",PRINTNUM))), pp, nrow=1))
+#ggplot(df.long,aes(value,fill='red')) + geom_density() + facet_wrap(~variable,scales='free')
+}
+
+```
+
+
+### Further diagnostics
+```{r}
+source('/Users/spinz/Projects/R/reinforcement_learning/helper_functions.R')
+# Extract y_pred
+y_pred <- summary(fit15,pars="y_pred")$summary[,"mean"]
+y_pred.mat <- array(y_pred, dim= dim(choice))
+choice.predicted.mat <- structure(vapply(y_pred.mat,function(x) ifelse(x >= 0.5, 1, 0), numeric(1)), dim=dim(y_pred.mat))
+confmat <- confusion_matrix(choice.predicted.mat,choice)
+print(confmat)
+confmat.TP <- (confmat[1,1] + confmat[2,2]) / sum(confmat) # accuracy
+print(paste('True positive score: ', confmat.TP,sep=""))
+```
+
+### PPCs
+```{r}
+yrep_MA <- as.matrix(posterior[1000:2000,post_cols])
+log_lik_MA <- as.matrix(posterior_MA[999:nrow(posterior),log_like_MA])
+yrep_M0 <- as.matrix(posterior_M0[1000:nrow(posterior_M0),post_cols_M0])
+log_lik_M0 <- as.matrix(posterior_M0[999:nrow(posterior_M0),log_like_M0])
+y <- as.vector(palp_data_sim$choice)
+```
+
+
+```{r}
+color_scheme_set("brightblue")
+ppc_dens_overlay(y, yrep_MA[1:50, ])
+
+ppc_hist(y, yrep_MA[1:5, ])
+ppc_bars(y,yrep_MA)
+
+ppc_error_hist(y, yrep_MA[1:3, ])
+
+# This one is great
+ppc_intervals(y[1:84],yrep_MA[1:10,1:84])
+ppc_intervals(y[42:84],yrep_M0[1:300,1:42])
+ppc_intervals(y[1:42], yrep_MA[1:5,1:42], x = y) + abline_01()
+
+```
+
+### Looking at mean (over sampels) predicted accuracy for all participants, seperately for blocks
+
+```{r}
+N <- palp_data_sim$N
+PPC_hist_block <- function(yrep,y,block){
+  meanacc.all <- matrix(0,nrow=N,ncol=dim(yrep)[1])
+  confInt <- c()
+  m <- c()
+  cv <- c()
+  histcolors <- rainbow(N)
+  ind.lower=0
+  for (p in 1:N) {
+    #ind.lower <- ifelse(block==1, eval(parse(text="1 + (p-1)*2*42")), eval(parse(text="1 + (p+1)*42")))
+    ind.lower <- 1 + ind.lower
+    ind.upper <- ind.lower + 84
+    for (k in 1:84) {
+      meanacc.all[p,] <- apply(yrep[p,,], 1, function(x) mean(x[ind.lower:ind.upper] == y[ind.lower:ind.upper]))
+    }
+    
+    
+    ind.lower <- ind.upper
+    m <- rbind(m,mean(meanacc.all[p,]))
+    se <- sd(meanacc.all[p,])/sqrt(length(meanacc.all[p,])) 
+    cv <- rbind(cv,qt(0.975,df=length(meanacc.all[p,])-1))
+   # show(cv)
+    #show(length(meanacc.all[p,]))
+    #show(se)
+    confInt <- cbind(confInt,c(m-cv*se,m+cv*se))
+    show(confInt)
+    
+    
+    # if (p==1) {
+    # hist(meanacc.all[p,], col=histcolors[p],xlim=c(0,1), ylim=c(0,2000), main=paste("Prediction accuracy for all participants, block ", block,sep=""), ylab="Count", xlab="Accuracy")
+    # } else{
+    # hist(meanacc.all[p,], col=histcolors[p], add=T)
+    #   }
+  
+    #}
+  
+  
+  }
+    return(list(meanacc.all=meanacc.all, confInt=confInt, m=m, cv=cv))
+
+}
+
+```
+
+```{r}
+accM0.B1 <- PPC_hist_block(yrep_M0,y,1)
+accM0.B2 <- PPC_hist_block(yrep_M0,y,2)
+accMA.B1 <- PPC_hist_block(yrep_MA,y,1)
+accMA.B2 <- PPC_hist_block(yrep_MA,y,2)
+
+# Or use: 
+mean_score_samples <- sapply(1:4000, function(x) mean(yrep_MA[x,] == y))
+
+```
+
+### Scatter plots of mean scores for each participant, for both blocks 
+```{r}
+df.long <- data.frame(cbind(c(apply(accMA.B1,1,mean), apply(accMA.B2,1,mean)), c(rep(1,N), rep(2,N))))
+
+ggplot(df.long, aes(x=1:nrow(df),y=X1, col=X2)) + geom_point()
+
+```
+
+### Finding out which participants prediction average accuracy is lowest
+```{r}
+df.wide <- data.frame(cbind(apply(accMA.B1,1,mean), apply(accMA.B2,1,mean)))
+# Average of both blocks:
+df.wide$averageB1B2 <- (df.wide$X1 + df.wide$X2)/2
+# Some stats for each column
+std.B1 <- sqrt(var(df.wide$X1))
+std.B2 <- sqrt(var(df.wide$X2))
+mean.B1 <- mean(df.wide$X1)
+mean.B2 <- mean(df.wide$X2)
+
+df.wide$flagB1 <- apply(df.wide[,1,drop=FALSE], 1, function(x) ifelse((x-mean.B1)/std.B1 > 2, 1, 0))
+df.wide$flagB2 <- apply(df.wide[,2,drop=FALSE], 1, function(x) ifelse((x-mean.B2)/std.B2 > 2, 1, 0))
+
+# Reorder df.wide from lowest to highest:
+df.wide <- df.wide[order(df.wide$average),]
+
+# See how many subjects obtained a predictive accuracy more than 2std from the mean
+table(df.wide$flagB1)
+table(df.wide$flagB2)
+```
+
+### Model comparison
+```{r}
+bridge[[1]] <- fit13.bs
+bridge[[2]] <- fit14.bs
+bridge[[3]] <- fit15.bs
+
+post_prob(bridge[[1]], bridge[[2]], bridge[[3]], model_names = c("M13", "M14", "M15"))
+```
+
+
+
+### Calculate 80%HDI and see if actual values (for simulated) fall in the HDI
+```{r}
+require(HDInterval)
+#fit <- fit18
+#posterior <- as.data.frame(extract(fit))
+PRINTNUM = 50
+indices <-  sample(seq(1,N,1),PRINTNUM) 
+param <- list()
+param[[1]] <- list(name="alpha",
+                   disp = "alpha",
+                   values=alpha, 
+                   support=c(0,1), 
+                   mu_p=mean(posterior$mu_alpha), 
+                   est_values=as.data.frame(extract(fit,pars="alpha")$alpha))
+
+param[[2]] <- list(name="gobias",
+                   disp= "biais",
+                   values=gobias, 
+                   support=c(-5,5), 
+                   mu_p=mean(posterior$mu_gobias),             
+                   est_values=as.data.frame(extract(fit,pars="gobias")$gobias))
+
+param[[3]] <- list(name="re_re",
+                   disp= "re",
+                   values=re_re, 
+                   support=c(0,10), 
+                   mu_p=mean(posterior$mu_re_re),
+                   est_values=as.data.frame(extract(fit,pars="re_re")$re_re))
+
+param[[4]] <- list(name="re_pu",
+                   disp= "pu",
+                   values=re_pu, 
+                   support=c(0,10), 
+                   mu_p=mean(posterior$mu_re_pu),
+                   est_values=as.data.frame(extract(fit,pars="re_pu")$re_pu))
+
+for (i in 1:4) {
+  
+
+  p <- param[[3]]
+  
+  mat.samples <- as.data.frame(extract(fit ,pars=p$name))
+  #mean.est <- extract(fit15,pars=p$mu_p)
+  hdi100.mat <- hdi(mat.samples, credMass=0.99999999)
+  hdi80.mat <- hdi(mat.samples, credMass=0.8)
+  hdi50.mat <- hdi(mat.samples, credMass=0.5)
+  dat <- matrix(-99,nrow=N,ncol=2)
+  dat[,1] <- p$values
+  for (n in 1:N) {
+    if ((hdi50.mat[1,n] <= dat[n,1]) & (dat[n,1] <= hdi50.mat[2,n])) {
+        dat[n,2] = 2
+      } else if ((hdi80.mat[1,n] <= dat[n,1]) & (dat[n,1] <= hdi80.mat[2,n])) {
+        dat[n,2] = 1
+      } else {
+        dat[n,2] = 0
+    }
+    
+  }
+  
+  # Then plot scatter with colors identifying whether ground truth is in the 80% HDI
+  dat.df <- as.data.frame(dat)
+  colnames(dat.df) <- c("values", "RPHD")
+  dat.df$CI_LL <- ifelse(dat.df$RPHD==2, hdi50.mat[1,], hdi80.mat[1,])
+  dat.df$CI_UL <- ifelse(dat.df$RPHD==2, hdi50.mat[2,], hdi80.mat[2,])
+  dat.df$RPHD <- as.factor(dat.df$RPHD)
+  gg <- ggplot(dat.df[indices,], aes(x=indices, y=values, color=RPHD)) + 
+    geom_point(shape = 16, size = 3,alpha = .70) + theme_minimal() + 
+    scale_color_manual(labels = c("exclus du 80%", "inclus dans 80%", "inclus dans 50%"), values=c("red", "blue", "green")) + geom_errorbar(aes(ymax=CI_UL,ymin=CI_LL)) +
+    geom_hline(yintercept=mean(eval(parse(text=p$name))), linetype="solid", color = "red") +
+    geom_hline(yintercept=p$mu_p, linetype="dotted", color = "red") +
+    labs(x="Participants", y=p$disp, title=paste("Régions de plus haute densité ",p$disp,sep="")) +
+    theme(plot.title = element_text(family = 'Helvetica', 
+                                color = '#666666', 
+                                face = 'bold', 
+                                size = 14, 
+                                hjust = 0.5))
+  
+  gg
+}
+# 
+# +#   geom_hline(yintercept=mean(mean.est), linetype="dashed", color = "red") +
+#   geom_hline(yintercept=eval(parse(text=p$mu_p)) + eval(parse(text=p$sigma)), linetype="dashed", color = "purple") + 
+#   geom_hline(yintercept=eval(parse(text=p$mu_p)) - eval(parse(text=p$sigma)), linetype="dashed", color = "purple") 
+  #geom_ribbon(aes(ymin=mu_p[4] - sigma[4],ymax=mu_p[4] + sigma[4]), fill="blue", alpha="0.2")
+  #geom_ribbon(aes(ymin = mu_p[4] - sigma[4], ymax = mu_p[4] + sigma[4]),alpha=0.2)
+
+
+
+```
+
+
+## Plotting the accuracy scores with third dimension of color being parameter value 
+```{r}
+y.mat <- matrix(y,nrow=100,ncol=84)
+yrep_MA.mat <- matrix(yrep_MA[1,],nrow=100,ncol=84)
+scores <- matrix(0,nrow=N,ncol=1)
+for (i in 1:N) {
+   scores[i] <- mean(yrep_MA.mat[i,]==y.mat[i,])
+}
+   
+df <- data.frame(scores=scores, id=seq(1,N,1), alpha=alpha, gobias=gobias, re_re=re_re, re_pu=re_pu)
+gg1 <- accscore_plot(df,param[[1]], c("white", "lightblue", "darkblue"))
+
+gg2 <- accscore_plot(df,param[[2]],c("purple","red", "orange")) 
+
+gg3 <- accscore_plot(df,param[[3]],c("yellow", "green", "blue"))  
+
+gg4 <- accscore_plot(df,param[[4]],c("black","grey","white"))   
+
+grid.arrange(gg1,gg2,gg3,gg4,top=textGrob("Niveau de prédiction distribué selon les paramètres individuels (actuels)", gp=gpar(fontsize=16,font=3,fontfamily="Comic Sans MS")))
+```
+
+
+
+### Mixed model analysis
+```{r}
+
+# Get fit and extract group membership prediction z 
+df <- data.frame(zmean=colMeans(as.data.frame(extract(fitmix,pars=sprintf("z[%s]",seq(1:100))))), 
+                  id=seq(1,100,1),
+                  group=factor(c(rep(1,50), rep(2,50))))
+
+cols <- c("1" = "darkred", "2"="darkblue")
+gg <- ggplot(df,aes(x=id,y=zmean,fill=group)) + geom_col() + geom_hline(aes(yintercept=0.5))
+gg + scale_fill_manual(values = cols) + labs(x="Participants", y="Moyenne", title="Moyenne de classification des participants") + theme(plot.title = element_text(hjust = 0.5,family="Comic Sans MS"),
+                                                                                                                                       legend.title = element_text(hjust = 0.5,family="Comic Sans MS")) +
+  scale_fill_manual('Groupe',values=c("darkred","darkblue"))
+
+```
+
+
+
+### Save parameter means for each participant in a dataframe
+```{r}
+outFile = "/Users/spinz/Projects/R/reinforcement_learning/fit15pars.csv"
+est_mean_alpha <- summary(fit,pars="alpha")$summary[,"mean"]
+est_mean_gobias <- summary(fit,pars="gobias")$summary[,"mean"]
+est_mean_re_re <- summary(fit,pars="re_re")$summary[,"mean"]
+est_mean_re_pu <- summary(fit,pars="re_pu")$summary[,"mean"]
+parsdf <- data.frame(cbind(est_mean_alpha,est_mean_gobias,est_mean_re_re,est_mean_re_pu))
+rownames(parsdf) <- seq.int(from = 1,to = N,by = 1)
+write.csv(parsdf,file=outFile)
+
+
+
+```
+
+

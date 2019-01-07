@@ -1,0 +1,384 @@
+---
+title: "PALP Stan modelling"
+output: github_document
+---
+
+### Looking more closely at the relationship between learning rate and total score 
+```{r}
+M=100
+N=dim(palpdat)[1]
+alphaV1 <- seq(0.001,1,length.out = M)
+betaV1 <- runif(M,1,3)
+#betaV1 <- rep(1,M)
+R = 100 # number of repetitions
+
+dists <- matrix(0,nrow=R, ncol=length(alphaV1))
+for (rr in 1:R) {
+  for (aa in 1:length(alphaV1)) {
+    alpha <- alphaV1[aa]
+    beta <- betaV1[aa]
+    
+    sim <- sim_PALP_M1(alpha,beta,N,palpdat)
+    score <- sum(sim$r)
+    dists[rr,aa] <- score
+  
+  }
+}
+#boxplot(dists)
+means <- apply(dists,2,mean)
+
+# PLotting 
+ggplot(d, aes(alphaV1, means)) +
+  geom_point(shape = 16, size = 3, show.legend = FALSE) +
+  theme_minimal() +
+ # stat_smooth(method="lm", formula=y~log(x),fill="red") +
+  #stat_function(fun=log, colour="red", args=list(x=alphaV1)) +
+  xlab(expression(paste("Learning rate ", alpha))) + ylab("Total Score") + ggtitle( expression(paste("Score as a function of ",alpha ))) +
+  theme(plot.title = element_text(family="Times",face="bold",size=17,hjust = 0.5)) +
+  theme(axis.line.x = element_line(color="black", size = 0.5),
+        axis.line.y = element_line(color="black", size = 0.5))
+
+```
+
+
+
+
+### A function for creating the PALP task environment with cues and answers
+```{r}
+create_PALP2 <- function(v,n,b){
+  palp <- array(0, dim=c(b,6*n,2))
+  # n is the number of trials with stims shuffled
+  tRR <- cbind(v[1,], v[3,])
+  tRP <- cbind(v[2,], v[3,])
+  palp_RR <- tRR
+  palp_RP <- tRP
+  
+
+  k = 1
+  while (k<n) {
+    palp_RR <- rbind(palp_RR, tRR[sample(nrow(tRR)),])
+    palp_RP <- rbind(palp_RP, tRP[sample(nrow(tRP)),])
+    k = k + 1
+  }
+  print(dim(palp_RR))
+  palp[1,,] <- palp_RR
+  palp[2,,] <- palp_RP
+  return(palp)
+  
+}
+```
+
+### Simulated agent function applied to both blocks RR and RP
+```{r}
+sim_PALP_M2 <- function(alpha,gobias,re_re,re_pu,N,nBloc,palpRP){
+  
+  answers_RR <- c(0,1,0,1,0,1)
+  answers_RP <- c(1,0,1,0,1,0)
+  grtruth <- rbind(answers_RR,answers_RP)
+  choice <- matrix(0,nrow=nBloc,ncol=N)
+  pretreat_cues <- matrix(0,nrow=nBloc, ncol=9)
+  pretreat_rwds <- matrix(0,nrow=nBloc, ncol=9)
+  cues <- matrix(0,nrow=nBloc, ncol=N)
+  reward <- matrix(0, nrow=nBloc, ncol=N)
+
+
+  for (bb in 1:nBloc) {
+      
+    Q <- matrix(0, nrow=2, ncol=6)
+    # Pretreatment
+    # randomly select 9 out of 6 (cues) with these rules:
+    #         - Never repeated more than twice
+    #         - Each cue repeated at least once
+
+    
+    # First Block: subject is reward for correct answers and NOT punished for wrong answers
+    # Second Block: subject is punished for incorrectly hitting space (Go), while NOT punished if incorrectly doesnt hit space (Nogo) 
+
+    # RR Block
+    if (bb == 1) {
+      
+        select_cues <- sample(c(seq.int(1,6) , sample(seq.int(1,6),3)),size=9)
+        pretreat_cues[bb,] <- select_cues
+
+
+      for (cc in 1:length(select_cues)) {
+        # Pretreatment
+        pretreat_rwds[bb,cc] <- ifelse((grtruth[bb,select_cues[cc]] - 1) == 0, 1, 0) 
+        Q[2,select_cues[cc]] <- Q[2,select_cues[cc]] + (pretreat_rwds[bb,cc] - Q[2,select_cues[cc]])} 
+
+      for(k in 1:N){
+        
+        # Get current stimulus of trial k
+        currentstim <- palpRP[bb,k,2]
+        correct_ans <- palpRP[bb,k,1]
+        cues[bb,k] <- currentstim
+            
+        Wgo <-     
+        Pb <- inv.logit(Wgo[ currentstim ] - Wnogo[ currentstim )
+        Pb <- exp(beta*Q[2,currentstim]) / (exp(beta*Q[1,currentstim]) + exp(beta*Q[2,currentstim]))
+        #Pb <- exp(-beta*Q[2,currentstim] - log(sum(exp(-beta*(Q[2,currentstim] + Q[1,currentstim])))))
+        #Pb <- 1 / (1 + exp(-beta*(Q[2,currentstim] - Q[1, currentstim]))) 
+        # Now generate a random choice
+        choice[bb,k] <- sample(c(0,1),size=1, prob=c(1-Pb,Pb))
+
+        reward[bb,k] <- ifelse(choice[bb,k] == correct_ans, 1, 0)
+        
+    
+        # Update Q value of chosen option after seeing reward
+        Q[choice[bb,k]+1,currentstim] <- Q[choice[bb,k]+1,currentstim] + alpha*(reward[bb,k] - Q[choice[bb,k]+1,currentstim])
+      }
+        
+    }
+    
+    # RP Block
+    else {
+      # Pretreatment
+      select_cues <- sample(c(seq.int(1,6) , sample(seq.int(1,6),3)),size=9)
+      pretreat_cues[bb,] <- select_cues
+        
+      for (cc in 1:length(select_cues)) {
+      pretreat_rwds[bb,cc] <- ifelse((grtruth[bb,select_cues[cc]] - 1) == 0, 1, -1) # punished for bad go, not punished bad nogo, reward good go 
+      Q[2,select_cues[cc]] <- Q[2,select_cues[cc]] + 3*(pretreat_rwds[bb,cc] - Q[2,select_cues[cc]]) 
+      }
+      
+      # RP bloc 
+      for(k in 1:N){
+        
+        # Get current stimulus of trial k
+        currentstim <- palpRP[bb,k,2]
+        correct_ans <- palpRP[bb,k,1]
+        cues[bb,k] <- currentstim
+        
+        Pb <- exp(beta*Q[2,currentstim]) / (exp(beta*Q[1,currentstim]) + exp(beta*Q[2,currentstim]))
+        #Pb <- exp(-beta*Q[2,currentstim] - log(sum(exp(-beta*(Q[2,currentstim] + Q[1,currentstim])))))
+        #Pb <- 1 / (1 + exp(-beta*(Q[2,currentstim] - Q[1, currentstim]))) 
+      
+        # Now generate a random choice
+        choice[bb,k] <- sample(c(0,1),size=1, prob=c(1-Pb,Pb))
+        #choice[k] <- rbinom(1,1,Pb)
+        
+        if (correct_ans == 0) {
+                  reward[bb,k] <- ifelse(choice[bb,k] == correct_ans, 0, -1)
+        } else if (correct_ans == 1) {
+                  reward[bb,k] <- ifelse(choice[bb,k] == correct_ans, 1, 0)
+        }
+    
+        # Update Q value of chosen option after seeing reward
+        Q[choice[bb,k]+1,currentstim] <- Q[choice[bb,k]+1,currentstim] + alpha*(reward[bb,k] - Q[choice[bb,k]+1,currentstim])
+        
+      }
+      
+     }
+    
+  }
+  simdata <- list("c" = choice, 
+                  "r" = reward, 
+                  "Q" = Q, 
+                  "cues" = cues,
+                  "pretreat_cues" = pretreat_cues,
+                  "pretreat_rwds" = pretreat_rwds)
+}
+```
+
+### Fitting with Stan
+
+```{r}
+require(rstan)
+N = 10 # N is number of participants
+T = 120 # T is number of trials per participant
+answers_RR <- c(0,1,0,1,0,1)
+answers_RP <- c(1,0,1,0,1,0)
+stims <- c(1,2,3,4,5,6)
+v <- rbind(answers_RR,answers_RP,stims)
+
+cue <- array(0,dim=c(N,2,T)) # The cues for all participants, blocks and trial
+choice <- array(0,dim=c(N,2,T)) # choices
+outcome <- array(0,dim=c(N,2,T)) # outcome (reward)
+pretreat <- array(0,dim=c(N,2,9)) # pretreatment cues (9 for each block)
+prerewards <- array(0,dim=c(N,2,9)) # pretreatment rewards 
+
+alpha = seq(0.001,1,length.out = N) # simulated learning rates 
+beta = runif(N,0,10)                # simulated inv temp
+#beta = rep(1,N)
+
+for (n in 1:N) {
+  palpdat <- create_PALP2(v,20,2)
+  simdat2RP <- sim_PALP_M2(alpha[n],beta[n],T,2,palpdat)
+  
+  choice[n,,] <- simdat2RP$c
+  outcome[n,,] <- simdat2RP$r
+  cue[n,,] <- simdat2RP$cues
+  pretreat[n,,] <- simdat2RP$pretreat_cues
+  prerewards[n,,] <- simdat2RP$pretreat_rwds
+  
+}
+
+palp_data <- list(N = N,
+                  I = 6,
+                  T = T,
+                  B = 2,
+                  cue = cue,
+                  outcome = outcome,
+                  choice = choice,
+                  pretreat=pretreat,
+                  prerwds= prerewards) 
+  
+  
+fit <- stan(file = 'model10.stan', data = palp_data,iter = 2000, warmup=1000,chains = 1,cores = 1)
+```
+
+
+### Diagnostic 
+
+```{r}
+# Trace plot for chain mixing
+rstan::traceplot(fit, pars = c("alpha")) #+ scale_color_manual(values = retro)
+
+# Autocorrelation plots for parameters
+
+
+# Rhat and effective sample size 
+
+
+```
+
+### Point estimation functions
+```{r}
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+```
+
+
+### Fit evaluation and parameter recovery
+```{r}
+
+# Plotting the post distributions
+plot(fit, show_density = TRUE, pars="alpha",ci_level = 0.8, fill_color = "red")
+plot(fit, show_density = TRUE, pars="beta",ci_level = 0.8, fill_color = "blue")
+
+# Recovering the estimated parameters using the mean of the posterior (SE Loss Bayesian Decision)
+est_mean_a <- summary(fit,pars="alpha")$summary[,"mean"]
+est_mean_b <- summary(fit,pars="beta")$summary[,"mean"]
+
+# Recovering the estimated parameters using the mode of the posterior (0-1 Loss Bayesian Decision)
+adat <- extract(fit,pars="alpha")$alpha
+bdat <- extract(fit,pars="beta")$beta
+est_mode_a <- apply(adat,2,Mode)
+est_mode_b <- apply(bdat,2,Mode)
+
+# Recovering the estimated parameters using the mode of the posterior (absolute Loss Bayesian Decision)
+est_med_a <- apply(adat,2,median)
+est_med_b <- apply(bdat,2,median)
+
+# Fancier version of above 
+require(ggplot2)
+d <- data.frame(cbind(est_mean_a,est_mode_a,est_med_a,alpha,est_mean_b,est_mode_b,est_med_b,beta))
+
+######################### MEAN ESTIMATION ###############################
+gg_est_mean_b <- ggplot(d, aes(est_mean_b, beta, color = beta)) +
+  geom_point(shape = 16, size = 3, show.legend = FALSE) +
+  theme_minimal() +
+  geom_abline(slope=1,intercept=0) +
+  xlab("Estimated (posterior mean)") + ylab("Ground Truth") + ggtitle("Estimated beta versus ground truth") +
+  theme(plot.title = element_text(family="Times",face="bold",size=17,hjust = 0.5)) +
+  theme(axis.line.x = element_line(color="black", size = 0.5),
+        axis.line.y = element_line(color="black", size = 0.5))
+
+
+gg_est_mean_a  <- ggplot(d, aes(est_mean_a, alpha, color = alpha)) +
+  geom_point(shape = 16, size = 3, show.legend = FALSE) +
+  theme_minimal() + scale_color_gradient(low = "#c11616", high = "#f88d8d") +
+  geom_abline(slope=1,intercept=0) +
+  xlab("Estimated (posterior mean)") + ylab("Ground Truth") + ggtitle("Estimated alpha versus ground truth") +
+  theme(plot.title = element_text(family="Times",face="bold",size=17,hjust = 0.5)) + 
+  theme(axis.line.x = element_line(color="black", size = 0.5),
+        axis.line.y = element_line(color="black", size = 0.5))
+
+######################### MODE ESTIMATION ###############################
+gg_est_mode_b <- ggplot(d, aes(est_mode_b, beta, color = beta)) +
+  geom_point(shape = 16, size = 3, show.legend = FALSE) +
+  theme_minimal() +
+  geom_abline(slope=1,intercept=0) +
+  xlab("Estimated (posterior mode)") + ylab("Ground Truth") + ggtitle("Estimated beta versus ground truth") +
+  theme(plot.title = element_text(family="Times",face="bold",size=17,hjust = 0.5)) +
+  theme(axis.line.x = element_line(color="black", size = 0.5),
+        axis.line.y = element_line(color="black", size = 0.5))
+
+
+gg_est_mode_a  <- ggplot(d, aes(est_mode_a, alpha, color = alpha)) +
+  geom_point(shape = 16, size = 3, show.legend = FALSE) +
+  theme_minimal() + scale_color_gradient(low = "#c11616", high = "#f88d8d") +
+  geom_abline(slope=1,intercept=0) +
+  xlab("Estimated (posterior mode)") + ylab("Ground Truth") + ggtitle("Estimated alpha versus ground truth") +
+  theme(plot.title = element_text(family="Times",face="bold",size=17,hjust = 0.5)) + 
+  theme(axis.line.x = element_line(color="black", size = 0.5),
+        axis.line.y = element_line(color="black", size = 0.5))
+
+######################### MEDIAN ESTIMATION ###############################
+gg_est_med_b <- ggplot(d, aes(est_med_b, beta, color = beta)) +
+  geom_point(shape = 16, size = 3, show.legend = FALSE) +
+  theme_minimal() +
+  geom_abline(slope=1,intercept=0) +
+  xlab("Estimated (posterior median)") + ylab("Ground Truth") + ggtitle("Estimated beta versus ground truth") +
+  theme(plot.title = element_text(family="Times",face="bold",size=17,hjust = 0.5)) +
+  theme(axis.line.x = element_line(color="black", size = 0.5),
+        axis.line.y = element_line(color="black", size = 0.5))
+
+
+gg_est_med_a  <- ggplot(d, aes(est_med_a, alpha, color = alpha)) +
+  geom_point(shape = 16, size = 3, show.legend = FALSE) +
+  theme_minimal() + scale_color_gradient(low = "#c11616", high = "#f88d8d") +
+  geom_abline(slope=1,intercept=0) +
+  xlab("Estimated (posterior median)") + ylab("Ground Truth") + ggtitle("Estimated alpha versus ground truth") +
+  theme(plot.title = element_text(family="Times",face="bold",size=17,hjust = 0.5)) + 
+  theme(axis.line.x = element_line(color="black", size = 0.5),
+        axis.line.y = element_line(color="black", size = 0.5))
+
+
+
+gg_est_mean_a
+gg_est_mean_b
+gg_est_mode_a
+gg_est_mode_b
+gg_est_med_a
+gg_est_med_b
+```
+
+### Predictive check: can we predict the participants answers?
+## To do (Not yet working)
+```{r}
+pred <- rstan::extract(fit,pars="y_pred")$y_pred
+post <- as.matrix(fit) 
+
+# selector for y_pred columns
+sel <- grep("y_pred", colnames(post))
+
+# compute credible intervals
+ci50 <- matrix(NA, nrow = length(sel), ncol = 2)
+ci90 <- matrix(NA, nrow = length(sel), ncol = 2)
+
+# RR block
+for (i in 1:dim(pred)[4]) {
+  ci50[i,] <- quantile(pred[,1,1,i], prob = c(0.25, 0.75), names = FALSE)
+  ci90[i,] <- quantile(pred[,1,1,i], prob = c(0.05, 0.95), names = FALSE)
+}
+
+
+# plot the true series along with posterior predictions
+plot(0,type="n",xlim=c(0,length(choice)), ylim= range(pred[,1,1,]), xlab="trial", ylab="choice", main="Predicted versus actual decision")
+lines(choice,col = "#808080", lwd = 2)
+plot(choice)
+#t <- 2:length(choice)
+#polygon(c(rev(t), t), c(rev(ci90[,1]), ci90[,2]), col = "#FF668830", border = FALSE)
+
+```
+
+
+
+### Testing for model complexity (if simple no learning model is a better fit using LOOIC)
+```{r}
+# To do
+```
+
