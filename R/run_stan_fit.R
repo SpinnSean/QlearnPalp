@@ -1,6 +1,7 @@
 #!/usr/bin/env Rscript
 
-library("optparse")
+source('R/import_libs.R')
+import_libs()
 source('R/aggregate_PALP2.R')
 source('R/stan_fit.R')
 source('R/label_split.R')
