@@ -112,7 +112,7 @@ extract_parameters <- function(fitPath){
 }
 
 
-stan_fit <- function(mainDir,out,palpDataPath,clobber=FALSE,nchains=2,niter=1500,warmup=1000, adelta=0.99) {
+stan_fit <- function(mainDir,out,palpDataPath,clobber=FALSE,nchains=2,niter=1500,warmup=1000, adelta=0.99,verbose=FALSE) {
   group <- str_extract_all(palpDataPath,"\\(?[0-9,.]+\\)?")[[1]][1]
   outname = file.path(mainDir, 'fits', paste0(out,'_', group, '_','fit.rds'))
 
