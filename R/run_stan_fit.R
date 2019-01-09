@@ -1,46 +1,48 @@
-#!/usr/bin/env Rscript
+#!/usr/bin/ Rscript
 
-source('R/import_libs.R')
+source('import_libs.R')
 import_libs()
-source('R/aggregate_PALP2.R')
-source('R/stan_fit.R')
-source('R/label_split.R')
-source('R/helpers.R')
+source('aggregate_PALP2.R')
+source('stan_fit.R')
+source('label_split.R')
+source('helpers.R')
 
 
 
-option_list = list(
-  make_option(c("-", "--main"), type="character", default=NULL,
-              help="main directory where project is located", metavar="character"),
-  make_option(c("-l", "--label"), type="character", default=NULL,
-              help="label for groups in covariate file", metavar="character"),
-  make_option(c("-c", "--cov"), type="character", default="COVENTURE_COMPLETE.txt",
-              help="covariate file full path [default= %default]", metavar="character"),
-  make_option(c("-y", "--year"), type="character", default='Y1',
-              help="year [default= %default]", metavar="character"),
-  make_option(c("-s", "--sim"), type="character", default=FALSE,
-              help="run simulation [default= %default]", metavar="character"),
-  make_option(c("-p", "--predict"), type="character", default=FALSE,
-              help="predict group membership using mixture model [default= %default]", metavar="character"),
-  make_option(c("-o", "--out"), type="character", default=FALSE,
-              help="out string for creating lists of subjects by modality (ex.: Gender)", metavar="character"),
-  make_option(c("-r", "--ratio"), type="array", default= c(.7,.3),
-              help="train/test ratio [default= %default]", metavar="character")
+#option_list = list(
+#  make_option(c("-", "--main"), type="character", default=NULL,
+#              help="main directory where project is located", metavar="character"),
+#  make_option(c("-l", "--label"), type="character", default=NULL,
+#              help="label for groups in covariate file", metavar="character"),
+#  make_option(c("-c", "--cov"), type="character", default="COVENTURE_COMPLETE.txt",
+#              help="covariate file full path [default= %default]", metavar="character"),
+#  make_option(c("-y", "--year"), type="character", default='Y1',
+#              help="year [default= %default]", metavar="character"),
+#  make_option(c("-s", "--sim"), type="character", default=FALSE,
+##              help="run simulation [default= %default]", metavar="character"),
+#  make_option(c("-p", "--predict"), type="character", default=FALSE,
+#              help="predict group membership using mixture model [default= %default]", metavar="character"),
+#  make_option(c("-o", "--out"), type="character", default=FALSE,
+#              help="out string for creating lists of subjects by modality (ex.: Gender)", metavar="character"),
+#  make_option(c("-r", "--ratio"), type="array", default= c(.7,.3),
+#              help="train/test ratio [default= %default]", metavar="character")
+#);
 
+#opt_parser = OptionParser(option_list=option_list);
+#opt = parse_args(opt_parser);
 
-);
-
-opt_parser = OptionParser(option_list=option_list);
-opt = parse_args(opt_parser);
-
-opt = list(main= '/Users/spinz/Projects/QlearnPalp',
+opt = list(main= '/home/spinney/scripts/r/QlearnPalp',
            label= 'DEM_01',
-           cov= '/Volumes/Storage/Work/Data/Coventure/COVENTURE_COMPLETE.csv',
+           cov= '/home/spinney/scripts/r/QlearnPalp/data/COVENTURE_COMPLETE.csv',
            year= 5,
            sim= FALSE,
            predict=FALSE,
            out='gender',
-           ratio=c(0.7,0.3))
+           ratio=c(0.7,0.3),
+	   nchains=4,
+	   niter=3000,
+	   warmup=1000, 
+	   adelta=0.99)
 
 if (is.null(opt$main)){
   print_help(opt_parser)
@@ -67,10 +69,17 @@ p2 <- file.path(opt$main,'data',paste0(opt$out,'_2','.csv'))
 palpDataPathG1 <- get_allsub(opt$main,p1,opt$year,opt$out,opt$ratio)
 palpDataPathG2 <- get_allsub(opt$main,p2,opt$year,opt$out,opt$ratio)
 
+nchains=2,niter=1500,warmup=1000, adelta=0.99
 # fit the palp on each goup seperately to get group level parameters
+<<<<<<< HEAD
 # Check if files exist, or if clobber = True
 fitPathG1 <- stan_fit(opt$main,opt$out,palpDataPathG1$train,clobber=False)
 fitPathG2 <- stan_fit(opt$main,opt$out,palpDataPathG2$train,clobber=False)
+=======
+print('Beginning fit...')
+fitPathG1 <- stan_fit(opt$main,opt$out,palpDataPathG1$train,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
+fitPathG2 <- stan_fit(opt$main,opt$out,palpDataPathG2$train,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
+>>>>>>> 41168f1f7c65d26a97888e828e6722f258a505cb
 
 if (predict) {
 

@@ -1,6 +1,6 @@
 library(rstan)
 library(stringr)
-source('R/helpers.R')
+source('helpers.R')
 options(mc.cores = parallel::detectCores())
 
 combine_groups <- function(g1,g1Params, g2, g2Params){
@@ -113,7 +113,11 @@ extract_parameters <- function(fitPath){
 
 
 
+<<<<<<< HEAD
 stan_fit <- function(mainDir,out,palpDataPath,clobber=FALSE,nchains=2,niter=1500,warmup=1000, adelta=0.99) {
+=======
+stan_fit <- function(mainDir,out,palpDataPath,nchains=2,niter=1500,warmup=1000, adelta=0.99,verbose=FALSE) {
+>>>>>>> 41168f1f7c65d26a97888e828e6722f258a505cb
 
   group <- str_extract_all(palpDataPath,"\\(?[0-9,.]+\\)?")[[1]][1]
   outname = file.path(mainDir, 'fits', paste0(out,'_', group, '_','fit.rds'))
@@ -136,7 +140,8 @@ stan_fit <- function(mainDir,out,palpDataPath,clobber=FALSE,nchains=2,niter=1500
               iter = niter,
               warmup= warmup,
               chains = nchains,
-              control = list(adapt_delta = adelta))
+              control = list(adapt_delta = adelta),
+	      verbose=verbose)
 
 
   saveRDS(fit, outname)
