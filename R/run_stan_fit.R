@@ -36,13 +36,13 @@ opt = list(main= '/home/spinney/scripts/r/QlearnPalp',
            cov= '/home/spinney/scripts/r/QlearnPalp/data/COVENTURE_COMPLETE.csv',
            year= 5,
            sim= FALSE,
-           predict=FALSE,
+           predict=TRUE,
            out='gender',
            ratio=c(0.7,0.3),
-	   nchains=4,
-	   niter=3000,
-	   warmup=1000, 
-	   adelta=0.99)
+      	   nchains=4,
+      	   niter=3000,
+      	   warmup=1000,
+      	   adelta=0.99)
 
 if (is.null(opt$main)){
   print_help(opt_parser)
@@ -71,15 +71,11 @@ palpDataPathG2 <- get_allsub(opt$main,p2,opt$year,opt$out,opt$ratio)
 
 nchains=2,niter=1500,warmup=1000, adelta=0.99
 # fit the palp on each goup seperately to get group level parameters
-<<<<<<< HEAD
+
 # Check if files exist, or if clobber = True
-fitPathG1 <- stan_fit(opt$main,opt$out,palpDataPathG1$train,clobber=False)
-fitPathG2 <- stan_fit(opt$main,opt$out,palpDataPathG2$train,clobber=False)
-=======
 print('Beginning fit...')
-fitPathG1 <- stan_fit(opt$main,opt$out,palpDataPathG1$train,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
-fitPathG2 <- stan_fit(opt$main,opt$out,palpDataPathG2$train,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
->>>>>>> 41168f1f7c65d26a97888e828e6722f258a505cb
+fitPathG1 <- stan_fit(opt$main,opt$out,palpDataPathG1$train,False,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
+fitPathG2 <- stan_fit(opt$main,opt$out,palpDataPathG2$train,False,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
 
 if (predict) {
 
