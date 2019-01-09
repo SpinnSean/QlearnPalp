@@ -69,15 +69,15 @@ p2 <- file.path(opt$main,'data',paste0(opt$out,'_2','.csv'))
 palpDataPathG1 <- get_allsub(opt$main,p1,opt$year,opt$out,opt$ratio)
 palpDataPathG2 <- get_allsub(opt$main,p2,opt$year,opt$out,opt$ratio)
 
-nchains=2,niter=1500,warmup=1000, adelta=0.99
+
 # fit the palp on each goup seperately to get group level parameters
 
 # Check if files exist, or if clobber = True
 print('Beginning fit...')
-fitPathG1 <- stan_fit(opt$main,opt$out,palpDataPathG1$train,False,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
-fitPathG2 <- stan_fit(opt$main,opt$out,palpDataPathG2$train,False,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
+fitPathG1 <- stan_fit(opt$main,opt$out,palpDataPathG1$train,FALSE,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
+fitPathG2 <- stan_fit(opt$main,opt$out,palpDataPathG2$train,FALSE,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
 
-if (predict) {
+if (isTRUE(predict)) {
 
   # extract group level means and stds for all parameters
   g1Params <- extract_parameters(fitPathG1)
