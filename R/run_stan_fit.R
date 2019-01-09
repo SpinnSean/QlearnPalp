@@ -86,7 +86,15 @@ if (isTRUE(opt$predict)) {
 
   print(rbind(g1Params,g2Params))
   # using the parameters estimated on a train set we evaluate the test set group membership
-  fitMix <- stan_mix_fit(opt$main, opt$out, g1Params, g2Params, list(g1 = palpDataPathG1$test, g2 = palpDataPathG2$test))
+  fitMix <- stan_mix_fit(opt$main,
+                         opt$out,
+                         g1Params,
+                         g2Params,
+                         list(g1 = palpDataPathG1$test, g2 = palpDataPathG2$test),
+                         nchains=6,
+                         niter=3000,
+                         warmup=1000,
+                         adelta=0.99)
 
   # extract group prediction and calculate accuracy
   resultDf <- create_result_df(fitMix$outname,fitMix$group,fitMix$subInd)
