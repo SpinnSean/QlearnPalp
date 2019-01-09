@@ -68,8 +68,9 @@ palpDataPathG1 <- get_allsub(opt$main,p1,opt$year,opt$out,opt$ratio)
 palpDataPathG2 <- get_allsub(opt$main,p2,opt$year,opt$out,opt$ratio)
 
 # fit the palp on each goup seperately to get group level parameters
-fitPathG1 <- stan_fit(opt$main,opt$out,palpDataPathG1$train)
-fitPathG2 <- stan_fit(opt$main,opt$out,palpDataPathG2$train)
+# Check if files exist, or if clobber = True
+fitPathG1 <- stan_fit(opt$main,opt$out,palpDataPathG1$train,clobber=False)
+fitPathG2 <- stan_fit(opt$main,opt$out,palpDataPathG2$train,clobber=False)
 
 if (predict) {
 

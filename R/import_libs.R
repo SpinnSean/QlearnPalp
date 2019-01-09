@@ -15,7 +15,6 @@ import_libs <- function( packages = "favourites" ) {
   } else {
     print( "All requested packages already installed" )
   }
-
   for( package in packages ) {
     suppressPackageStartupMessages(
       library( package, character.only = TRUE, quietly = TRUE )
