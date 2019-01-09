@@ -77,7 +77,8 @@ print('Beginning fit...')
 fitPathG1 <- stan_fit(opt$main,opt$out,palpDataPathG1$train,FALSE,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
 fitPathG2 <- stan_fit(opt$main,opt$out,palpDataPathG2$train,FALSE,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
 print("Group level fit is complete.")
-if (isTRUE(predict)) {
+
+if (isTRUE(opt$predict)) {
   print("Beginning mixture model fit for classification...")
   # extract group level means and stds for all parameters
   g1Params <- extract_parameters(fitPathG1)
