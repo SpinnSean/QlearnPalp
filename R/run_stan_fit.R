@@ -40,9 +40,10 @@ opt = list(main= '/home/spinney/scripts/r/QlearnPalp',
            out='gender',
            ratio=c(0.7,0.3),
       	   nchains=4,
-      	   niter=3000,
+      	   niter=1000,
       	   warmup=1000,
-      	   adelta=0.99)
+      	   adelta=0.99,
+           clobber=TRUE)
 
 if (is.null(opt$main)){
   print_help(opt_parser)
@@ -74,9 +75,9 @@ palpDataPathG2 <- get_allsub(opt$main,p2,opt$year,opt$out,opt$ratio)
 
 # Check if files exist, or if clobber = True
 print('Beginning fit...')
-#fitPathG1 <- stan_fit(opt$main,opt$out,palpDataPathG1$train,FALSE,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
+#fitPathG1 <- stan_fit(opt$main,opt$out,palpDataPathG1$train,opt$clobber,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
 print("Group 1 done. Starting group 2.")
-fitPathG2 <- stan_fit(opt$main,opt$out,palpDataPathG2$train,FALSE,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
+fitPathG2 <- stan_fit(opt$main,opt$out,palpDataPathG2$train,opt$clobber,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
 print("Group level fit is complete.")
 
 if (isTRUE(opt$predict)) {
