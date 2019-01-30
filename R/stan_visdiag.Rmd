@@ -14,7 +14,7 @@ require(grid)
 require(extrafont)
 require(reshape2)
 
-graphpath <- '/Users/spinz/Documents/LaTex/internship_graphs/'
+graphpath <- '../graphs/'
 ```
 
 ### Utility functions
@@ -79,11 +79,38 @@ accscore_plot <- function(df,p,colours) {
 
 ### Load the fitted object (MA for alternate model, M0 for null model)
 ```{r}
-fit <- readRDS('/Users/spinz/Projects/R/reinforcement_learning/model_choice/M4/fit4_Y5.rds')
+fit1 <- readRDS('../fits/gender_1_fit.rds')
+fit2 <- readRDS('../fits/gender_2_fit.rds')
 posterior <- as.data.frame(fit)
 grppars <- c("mu_alpha","mu_gobias","mu_re_re","mu_re_pu")
 np <- nuts_params(fit)
 print(fit,grppars)
+```
+
+```{r}
+posterior1 = as.data.frame(extract(fit1,pars= grppars))
+posterior2 = as.data.frame(extract(fit2,pars= grppars))
+
+df1 <- data.frame(mu_alpha_diff = posterior1$mu_alpha - posterior2$mu_alpha,
+                  mu_gobias_diff =posterior1$mu_gobias - posterior2$mu_gobias,
+                  mu_re_re_diff = posterior1$mu_re_re  - posterior2$mu_re_re,
+                  mu_re_pu_diff = posterior1$mu_re_pu - posterior2$mu_re_pu)
+
+ggplot(df1, aes(x=mu_alpha_diff)) + geom_density(alpha=0.4, fill='red') + geom_vline(xintercept = 0) + theme_minimal() + guides(fill=FALSE) + labs(x="Différence", y="Densité", title="Différence entre groupes pour paramètre mu_alpha") + theme(plot.title = element_text(hjust = 0.5,family="Comic Sans MS", size=14))
+
+ggplot(df1, aes(x=mu_gobias_diff)) + geom_density(alpha=0.4,fill='blue') + geom_vline(xintercept = 0) + theme_minimal() + guides(fill=FALSE) + labs(x="Différence", y="Densité", title="Différence entre groupes pour paramètre mu_gobias") + theme(plot.title = element_text(hjust = 0.5,family="Comic Sans MS", size=14))
+
+ggplot(df1, aes(x=mu_re_re_diff)) + geom_density(alpha=0.4,fill='darkgreen') +  geom_vline(xintercept = 0) + theme_minimal() + guides(fill=FALSE) + labs(x="Différence", y="Densité", title="Différence entre groupes pour paramètre mu_re_re") + theme(plot.title = element_text(hjust = 0.5,family="Comic Sans MS", size=14))
+
+ggplot(df1, aes(x=mu_re_pu_diff)) + geom_density(alpha=0.4,fill='purple') + geom_vline(xintercept = 0) + theme_minimal() + guides(fill=FALSE) + labs(x="Différence", y="Densité", title="Différence entre groupes pour paramètre mu_re_pu") + theme(plot.title = element_text(hjust = 0.5,family="Comic Sans MS", size=14))
+
+
+```
+```{r}
+mean(posterior1$mu_alpha - posterior2$mu_alpha < 0)
+mean(posterior1$mu_gobias - posterior2$mu_gobias < 0 )
+mean(posterior1$mu_re_re - posterior2$mu_re_re < 0)
+mean(posterior1$mu_re_pu - posterior2$mu_re_pu < 0)
 ```
 
 
@@ -222,6 +249,7 @@ cor(sapply(posterior[,re_re_cols],mean), sapply(posterior[,alpha_cols],mean))
 
 ### Look at distributions
 ```{r}
+library(latex2exp)
 
 # pp <- plot(fit18, show_density = TRUE, pars=sprintf("alpha[%s]",seq(1:20)),ci_level = 0.8, fill_color = "red",bty="n") + vline_at(v, linetype = c(1,3), size = 0.8, color=c('black','grey')) + labs(caption="Dotted Line:Estimated Group Mean; Full Line: Actual Group Mean")
 # plot(fit18, show_density = TRUE, pars=sprintf("gobias[%s]",seq(1:20)),ci_level = 0.8, fill_color = "blue")
@@ -256,7 +284,7 @@ murdist.gg <- murdist.gg + labs(x="Valeur", y="Densité", title=TeX("$\\mu_{\\re
 mupdist.gg <- ggplot(melt(mupdist), aes(value,fill=variable)) + 
   geom_density(alpha=0.6,fill="purple") + 
   theme_minimal() 
-mupdist.gg <- mupdist.gg + labs(x="Valeur", y="Densité", title=TeX("$\\mu_{\\alpha}$")) + theme(plot.title = element_text(hjust = 0.5,family="Comic Sans MS", size=14))
+mupdist.gg <- mupdist.gg + labs(x="Valeur", y="Densité", title=TeX("$\\mu_{\\pu}$")) + theme(plot.title = element_text(hjust = 0.5,family="Comic Sans MS", size=14))
 
 gg <- grid.arrange(muadist.gg, mugdist.gg,murdist.gg,mupdist.gg,
                    top=textGrob("Distributions postérieures des hyperparamètres", gp=gpar(fontsize=16,font=3,fontfamily="Comic Sans MS")))
@@ -265,7 +293,7 @@ ggsave(paste0(graphpath,'grouppostdist.png'),gg)
 
 PRINTNUM <- 10
 for (p in param) {
-  p<-param[[4]]
+  #p<-param[[4]]
 
   v <- c(mean(p$values),p$mu_p)
   df <- as.data.frame(extract(fit,pars=p$name))
@@ -476,7 +504,7 @@ require(HDInterval)
 #fit <- fit18
 #posterior <- as.data.frame(extract(fit))
 PRINTNUM = 50
-indices <-  sample(seq(1,N,1),PRINTNUM) 
+#indices <-  sample(seq(1,N,1),PRINTNUM) 
 param <- list()
 param[[1]] <- list(name="alpha",
                    disp = "alpha",
@@ -509,7 +537,7 @@ param[[4]] <- list(name="re_pu",
 for (i in 1:4) {
   
 
-  p <- param[[3]]
+  p <- param[[1]]
   
   mat.samples <- as.data.frame(extract(fit ,pars=p$name))
   #mean.est <- extract(fit15,pars=p$mu_p)

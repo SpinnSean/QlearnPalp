@@ -74,7 +74,8 @@ palpDataPathG2 <- get_allsub(opt$main,p2,opt$year,opt$out,opt$ratio)
 
 # Check if files exist, or if clobber = True
 print('Beginning fit...')
-fitPathG1 <- stan_fit(opt$main,opt$out,palpDataPathG1$train,FALSE,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
+#fitPathG1 <- stan_fit(opt$main,opt$out,palpDataPathG1$train,FALSE,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
+print("Group 1 done. Starting group 2.")
 fitPathG2 <- stan_fit(opt$main,opt$out,palpDataPathG2$train,FALSE,opt$nchains,opt$niter,opt$warmup,opt$adelta,verbose=TRUE)
 print("Group level fit is complete.")
 

@@ -12,7 +12,7 @@ combine_groups <- function(g1,g1Params, g2, g2Params){
   prerewards <- concat3DMat(g1$prerwds, g2$prerwds)
   group <- c(rep(1,g1$N), rep(2,g2$N))
 
-  shuffled_ind <- sample(seq_len(nrow(cue))-1)
+  shuffled_ind <- sample(seq_len(nrow(cue)))
 
   group <- group[shuffled_ind]
   combinedTestSet <- list(N = dim(choice[shuffled_ind,,])[1],
@@ -61,12 +61,12 @@ combine_groups <- function(g1,g1Params, g2, g2Params){
 }
 
 
-extract_parameters <- function(fitPath){
+extract_parameters <- function(fit){
 
-  fit <- readRDS(fitPath)
+  #fit <- readRDS(fitPath)
 
   # Select file name for output of parameter stats for group
-  outFile = '"fit18_mean_parameters_Y1_test.csv"'
+  outFile = "fit18_mean_parameters_Y1_test.csv"
 
   mu_mu_alpha <- summary(fit,pars="mu_alpha")$summary[,"mean"]
   mu_mu_gobias <- summary(fit,pars="mu_gobias")$summary[,"mean"]
@@ -148,6 +148,14 @@ stan_mix_fit <- function(mainDir, out, g1Params, g2Params, palpDataPathTest,ncha
   palpDataG2 <- readRDS(palpDataPathTest$g2)
   palp_data <- combine_groups(palpDataG1, g1Params, palpDataG2, g2Params)
 
+  group = palp_data$group
+
+  outname = file.path(mainDir, 'fits', paste0(out,'_mix_','fit.rds'))
+
+  if (file.exists(outname)) {
+    return(list(outname=outname, group=group, subInd=palp_data$subInd))
+  }
+
   fit <- stan(file = file.path(mainDir, 'models', 'model18_mix.stan'),
               data = palp_data$data,
               iter = niter,
@@ -155,9 +163,7 @@ stan_mix_fit <- function(mainDir, out, g1Params, g2Params, palpDataPathTest,ncha
               chains = nchains,
               control = list(adapt_delta = adelta))
 
-  group = palp_data$group
 
-  outname = file.path(mainDir, 'fits', paste0(out,'_mix_','fit.rds'))
   saveRDS(fit, outname)
   return(list(outname=outname, group=group, subInd=palp_data$subInd))
 }
