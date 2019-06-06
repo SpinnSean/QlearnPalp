@@ -1,6 +1,11 @@
+import os
 import pandas as pd
 
-f = "/Volumes/Storage/Work/Data/Coventure/COVENTURE_COMPLETE.csv"
+
+# Project directory
+main_dir = "/Users/sean/Projects/QlearnPalp"
+
+f = os.path.join(main_dir,'data','COVENTURE_COMPLETE.csv')
 
 df = pd.read_csv(f)
 
@@ -24,4 +29,4 @@ for i in skip_dict.keys():
 
 skipdf = pd.DataFrame().from_dict(skip_dict, orient='index')
 skipdf = skipdf.transpose()
-skipdf.to_csv('/Users/spinz/Projects/QlearnPalp/data/PALP_EXCLUDE_LIST.csv', index=None)
+skipdf.to_csv(os.path.join(main_dir,'data','PALP_EXCLUDE_LIST.csv'), index=None)

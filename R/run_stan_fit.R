@@ -31,9 +31,9 @@ source('helpers.R')
 #opt_parser = OptionParser(option_list=option_list);
 #opt = parse_args(opt_parser);
 
-opt = list(main= '/home/spinney/scripts/r/QlearnPalp',
+opt = list(main= '/Users/sean/Projects/QlearnPalp',
            label= 'DEM_01',
-           cov= '/home/spinney/scripts/r/QlearnPalp/data/COVENTURE_COMPLETE.csv',
+           cov= '/Users/sean/Projects/QlearnPalp/data/COVENTURE_COMPLETE.csv',
            year= 5,
            sim= FALSE,
            predict=TRUE,

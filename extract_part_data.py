@@ -9,13 +9,13 @@ the action and outcome and outputs a text file with those two columns for each t
 
 """
 
-mainDir = "/Users/spinz/Projects/QlearnPalp/"
+main_dir = "/Users/sean/Projects/QlearnPalp"
 # Path to csv file
 #path = "/Users/spinz/Projects/VirtualEnvs/RL_palp/COVENTURE-COVENTURE_PALP_EN-BASIC_DIGEST.csv"
 
-paths = [os.path.join(mainDir,'data','COVENTURE_PALP_Y{}.csv'.format(i)) for i in range(1,6)]
-ex_path = os.path.join(mainDir,'data','PALP_EXCLUDE_LIST.csv')
-outpaths = [os.path.join(mainDir,'data','extractedY{}/'.format(i)) for i in range(1,6)]
+paths = [os.path.join(main_dir,'data','COVENTURE_PALP_Y{}.csv'.format(i)) for i in range(1,6)]
+ex_path = os.path.join(main_dir,'data','PALP_EXCLUDE_LIST.csv')
+outpaths = [os.path.join(main_dir,'data','extractedY{}/'.format(i)) for i in range(1,6)]
 
 dataframes = [pd.read_csv(path) for path in paths]
 

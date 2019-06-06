@@ -1,4 +1,4 @@
-# This script will create seperate datasets based a particular modality, for example gender.
+# This script will create seperate datasets based on a particular modality, for example gender.
 
 
 label_split = function(mainDir,tp,cov,label,out,test=FALSE){

@@ -79,12 +79,13 @@ accscore_plot <- function(df,p,colours) {
 
 ### Load the fitted object (MA for alternate model, M0 for null model)
 ```{r}
-fit1 <- readRDS('../fits/gender_1_fit.rds')
-fit2 <- readRDS('../fits/gender_2_fit.rds')
-posterior <- as.data.frame(fit)
+fit1 <- readRDS('../fits/gender_3_2_fit.rds')
+fit2 <- readRDS('../fits/gender_4_2_fit.rds')
+#posterior <- as.data.frame(fit)
 grppars <- c("mu_alpha","mu_gobias","mu_re_re","mu_re_pu")
 np <- nuts_params(fit)
-print(fit,grppars)
+print(fit1,grppars)
+print(fit2,grppars)
 ```
 
 ```{r}
@@ -116,7 +117,7 @@ mean(posterior1$mu_re_pu - posterior2$mu_re_pu < 0)
 
 ### Rhat
 ```{r}
-
+fit<-fit1
 rhats <- rhat(fit)
 color_scheme_set("brightblue") # see help("color_scheme_set")
 mcmc_rhat(rhats) + ggtitle("Rhat pour l'ensemble des paramètres") + theme(plot.title = element_text(hjust = 0.5,family="Comic Sans MS", size=14))
@@ -138,20 +139,20 @@ mcmc_acf(posterior, lags = 10)
 color_scheme_set("mix-brightblue-gray")
 #mcmc_trace(posterior, pars = "gobias[4]", np = np) + 
  # xlab("Post-warmup iteration")
-atrace <- traceplot(fit,pars=sprintf("alpha[%s]",seq(1:10)))
-btrace <- traceplot(fit ,pars=sprintf("gobias[%s]",seq(1:10)))
-retrace <- traceplot(fit ,pars=sprintf("re_re[%s]",seq(1:10)))
-putrace <- traceplot(fit ,pars=sprintf("re_pu[%s]",seq(1:10)))
-grid.arrange(atrace,btrace,retrace,putrace, 
-             nrow=2,
-             ncol=2,
-               top = "Traceplots for parameters",
-  bottom = textGrob(
-    "Simulated data",
-    gp = gpar(fontface = 3, fontsize = 9),
-    hjust = 0.5,
-    x = 1
-  ))
+# atrace <- traceplot(fit,pars=sprintf("alpha[%s]",seq(1:10)))
+# btrace <- traceplot(fit ,pars=sprintf("gobias[%s]",seq(1:10)))
+# retrace <- traceplot(fit ,pars=sprintf("re_re[%s]",seq(1:10)))
+# putrace <- traceplot(fit ,pars=sprintf("re_pu[%s]",seq(1:10)))
+# grid.arrange(atrace,btrace,retrace,putrace, 
+#              nrow=2,
+#              ncol=2,
+#                top = "Traceplots for parameters",
+#   bottom = textGrob(
+#     "Simulated data",
+#     gp = gpar(fontface = 3, fontsize = 9),
+#     hjust = 0.5,
+#     x = 1
+#   ))
 
 # Group level traceplot 
 muatrace <- traceplot(fit,pars="mu_alpha") 
@@ -177,7 +178,7 @@ gg <- grid.arrange(muatrace, mugtrace, murtrace,muptrace,
     x = 0.5
   ))
 
-ggsave(paste0(graphpath,'chaîneshyper.png'),gg)
+#ggsave(paste0(graphpath,'chaîneshyper.png'),gg)
 ```
 
 ### Divergence 
@@ -255,7 +256,7 @@ library(latex2exp)
 # plot(fit18, show_density = TRUE, pars=sprintf("gobias[%s]",seq(1:20)),ci_level = 0.8, fill_color = "blue")
 # plot(fit18, show_density = TRUE, pars=sprintf("re_re[%s]",seq(1:20)),ci_level = 0.8, fill_color = "purple")
 # plot(fit18, show_density = TRUE, pars=sprintf("re_pu[%s]",seq(1:20)),ci_level = 0.8, fill_color = "green")
-
+fit<-fit2
 # Group level dists
 gg <- plot(fit, show_density=TRUE, pars=grppars)
 muadist <- as.data.frame(extract(fit,pars="mu_alpha"))

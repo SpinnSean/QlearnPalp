@@ -1,12 +1,22 @@
 import pandas as pd
+import os
+
+
+# Project directory
+main_dir = "/Users/sean/Projects/QlearnPalp"
+
+
+def abs_path(rel_path):
+  global main_dir
+  return os.path.join(main_dir, rel_path)
 
 
 # Coventure matrix
-covdat = pd.read_csv("/Volumes/Storage/Work/Data/Coventure/COVENTURE_COMPLETE.csv",usecols=['Year.5', 'Year.4', 'Year.3', 'Year.2', 'Baseline'])
+covdat = pd.read_csv(os.path.join(main_dir,"data/COVENTURE_COMPLETE.csv"),usecols=['Year.5', 'Year.4', 'Year.3', 'Year.2', 'Baseline'])
 
 # PALP data
-palpEN = pd.read_csv("/Volumes/Storage/Work/Data/Coventure/COVENTURE-COVENTURE_PALP_EN-BASIC_DIGEST.csv")
-palpFR = pd.read_csv("/Volumes/Storage/Work/Data/Coventure/COVENTURE-COVENTURE_PALP_FR-BASIC_DIGEST.csv")
+palpEN = pd.read_csv(abs_path("data/COVENTURE-COVENTURE_PALP_EN-BASIC_DIGEST.csv"))
+palpFR = pd.read_csv(abs_path("data/COVENTURE-COVENTURE_PALP_FR-BASIC_DIGEST.csv"))
 
 # Combine both french and english
 palp = pd.concat([palpEN, palpFR], ignore_index=True)
@@ -29,8 +39,8 @@ palp_Y4 = gp.get_group(4)
 palp_Y5 = gp.get_group(5)
 
 # Save
-palp_Y1.to_csv("/Users/spinz/Projects/QlearnPalp/COVENTURE_PALP_Y1.csv", index=None)
-palp_Y2.to_csv("/Users/spinz/Projects/QlearnPalp/COVENTURE_PALP_Y2.csv", index=None)
-palp_Y3.to_csv("/Users/spinz/Projects/QlearnPalp/COVENTURE_PALP_Y3.csv", index=None)
-palp_Y4.to_csv("/Users/spinz/Projects/QlearnPalp/COVENTURE_PALP_Y4.csv", index=None)
-palp_Y5.to_csv("/Users/spinz/Projects/QlearnPalp/COVENTURE_PALP_Y5.csv", index=None)
+palp_Y1.to_csv(abs_path("data/COVENTURE_PALP_Y1.csv"), index=None)
+palp_Y2.to_csv(abs_path("data/COVENTURE_PALP_Y2.csv"), index=None)
+palp_Y3.to_csv(abs_path("data/COVENTURE_PALP_Y3.csv"), index=None)
+palp_Y4.to_csv(abs_path("data/COVENTURE_PALP_Y4.csv"), index=None)
+palp_Y5.to_csv(abs_path("data/COVENTURE_PALP_Y5.csv"), index=None)
